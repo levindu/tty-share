@@ -8,6 +8,8 @@ import (
 	"os"
 	"strings"
 
+	"crypto/rand"
+	"encoding/base64"
 	"github.com/elisescu/tty-share/proxy"
 	"github.com/elisescu/tty-share/server"
 	ttyServer "github.com/elisescu/tty-share/server"
@@ -16,11 +18,20 @@ import (
 
 var version string = "0.0.0"
 
-func createServer(frontListenAddress string, frontendPath string, pty server.PTYHandler, sessionID string, allowTunneling bool, crossOrigin bool) *server.TTYServer {
+func generateLocalSessionId() (string, error) {
+	p := make([]byte, 16)
+	if _, err := io.ReadFull(rand.Reader, p); err != nil {
+		return "", err
+	}
+	return base64.StdEncoding.EncodeToString(p), nil
+}
+
+func createServer(frontListenAddress string, frontendPath string, pty server.PTYHandler, localSessionID string, sessionID string, allowTunneling bool, crossOrigin bool) *server.TTYServer {
 	config := ttyServer.TTYServerConfig{
 		FrontListenAddress: frontListenAddress,
 		FrontendPath:       frontendPath,
 		PTY:                pty,
+		LocalSessionID:     localSessionID,
 		SessionID:          sessionID,
 		AllowTunneling:     allowTunneling,
 		CrossOrigin:        crossOrigin,
@@ -178,7 +189,12 @@ Flags:
 		fmt.Printf("public session: %s\n", publicURL)
 	}
 
-	fmt.Printf("local session: http://%s/s/local/\n", *listenAddress)
+	localSessionId, err := generateLocalSessionId()
+	if err != nil {
+		log.Errorf("Cannot generate local session id: %s", err.Error())
+		return
+	}
+	fmt.Printf("local session: http://%s/s/%s/\n", *listenAddress, localSessionId)
 
 	if !*noWaitEnter && !*headless {
 		fmt.Printf("Press Enter to continue!\n")
@@ -197,7 +213,7 @@ Flags:
 		pty = &nilPTY{}
 	}
 
-	server := createServer(*listenAddress, *frontendPath, pty, sessionID, *allowTunneling, *crossOrgin)
+	server := createServer(*listenAddress, *frontendPath, pty, localSessionId, sessionID, *allowTunneling, *crossOrgin)
 	if cols, rows, e := ptyMaster.GetWinSize(); e == nil {
 		server.WindowSize(cols, rows)
 	}

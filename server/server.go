@@ -39,6 +39,7 @@ type TTYServerConfig struct {
 	FrontListenAddress string
 	FrontendPath       string
 	PTY                PTYHandler
+	LocalSessionID     string
 	SessionID          string
 	AllowTunneling     bool
 	CrossOrigin        bool
@@ -143,7 +144,7 @@ func NewTTYServer(config TTYServerConfig) (server *TTYServer) {
 
 	// Install the same routes on both the /local/ and /<SessionID>/. The session ID is received
 	// from the tty-proxy server, if a public session is involved.
-	installHandlers("local")
+	installHandlers(config.LocalSessionID)
 	installHandlers(config.SessionID)
 
 	server.httpServer.Handler = routesHandler
