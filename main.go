@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"net"
 
 	"crypto/rand"
 	"encoding/base64"
@@ -194,7 +195,27 @@ Flags:
 		log.Errorf("Cannot generate local session id: %s", err.Error())
 		return
 	}
-	fmt.Printf("local session: http://%s/s/%s/\n", *listenAddress, localSessionId)
+	host, port, err := net.SplitHostPort(*listenAddress)
+	if err != nil {
+		log.Errorf("Cannot parse listen address: %s", err.Error())
+		return
+	}
+	if host == "" || host == "0.0.0.0" {
+		addrs, err := net.InterfaceAddrs()
+		if err != nil {
+			log.Errorf("Cannot get network interface address: %s", err.Error())
+			return
+		}
+		for _, addr := range addrs {
+			if ipNet, ok := addr.(*net.IPNet); ok {
+				if !ipNet.IP.IsLoopback() && ipNet.IP.To4() != nil {
+					fmt.Printf("local session: http://%s:%s/s/%s/\n", ipNet.IP, port, localSessionId)
+				}
+			}
+		}
+	} else {
+		fmt.Printf("local session: http://%s/s/%s/\n", *listenAddress, localSessionId)
+	}
 
 	if !*noWaitEnter && !*headless {
 		fmt.Printf("Press Enter to continue!\n")
