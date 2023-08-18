@@ -27,6 +27,17 @@ func generateLocalSessionId() (string, error) {
 	return base64.StdEncoding.EncodeToString(p), nil
 }
 
+// GetFreePort return a free TCP port that is ready to use.
+func GetFreeTcpPort() (int, error) {
+	l, err := net.Listen("tcp", "")
+	if err != nil {
+		return 0, err
+	}
+	port := l.Addr().(*net.TCPAddr).Port
+	err = l.Close()
+	return port, err
+}
+
 func createServer(frontListenAddress string, frontendPath string, pty server.PTYHandler, localSessionID string, sessionID string, allowTunneling bool, crossOrigin bool) *server.TTYServer {
 	config := ttyServer.TTYServerConfig{
 		FrontListenAddress: frontListenAddress,
@@ -83,7 +94,7 @@ Flags:
 	}
 	commandArgs := flag.String("args", "", "[s] The command arguments")
 	logFileName := flag.String("logfile", "-", "The name of the file to log")
-	listenAddress := flag.String("listen", "localhost:8000", "[s] tty-server address")
+	listenAddress := flag.String("listen", "", "[s] tty-server address")
 	versionFlag := flag.Bool("version", false, "Print the tty-share version")
 	frontendPath := flag.String("frontend-path", "", "[s] The path to the frontend resources. By default, these resources are included in the server binary, so you only need this path if you don't want to use the bundled ones.")
 	proxyServerAddress := flag.String("tty-proxy", "on.tty-share.com:4567", "[s] Address of the proxy for public facing connections")
@@ -148,6 +159,15 @@ Flags:
 	if !isStdinTerminal() && !*headless {
 		fmt.Printf("Input not a tty\n")
 		os.Exit(1)
+	}
+
+	if *listenAddress == "" {
+		port, err := GetFreeTcpPort()
+		if err != nil {
+			log.Errorf("Can't get free tcp port: %s\n", err.Error())
+			return
+		}
+		*listenAddress = fmt.Sprintf(":%d", port)
 	}
 
 	sessionID := ""
@@ -278,3 +298,4 @@ Flags:
 	fmt.Printf("tty-share finished\n\n\r")
 	server.Stop()
 }
+
