@@ -57,7 +57,7 @@ func (server *TTYServer) serveContent(w http.ResponseWriter, r *http.Request, na
 	// If a path to the frontend resources was passed, serve from there, otherwise, serve from the
 	// builtin bundle
 	if server.config.FrontendPath == "" {
-		file, err := Asset(name)
+		file, err := ReadResource(name)
 
 		if err != nil {
 			w.WriteHeader(http.StatusNotFound)
@@ -272,7 +272,7 @@ func (server *TTYServer) handleWithTemplateHtml(responseWriter http.ResponseWrit
 	var t *template.Template
 	var err error
 	if server.config.FrontendPath == "" {
-		templateDta, err := Asset(templateFile)
+		templateDta, err := ReadResource(templateFile)
 		panicIfErr(err)
 		t = template.New(templateFile)
 		_, err = t.Parse(string(templateDta))
